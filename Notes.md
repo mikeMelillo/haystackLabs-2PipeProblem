@@ -113,10 +113,30 @@ Disadvantages:
 
 ## Further notes
 
-I plan to build out working samples of the following in SkySpark to demonstrate at Haystack Connect (and later post as the application note):
+I plan to build out working samples of the following in SkySpark to demonstrate at Haystack Connect (and later post as the application note). Each example would be accompanied with the "thing to solve" and one example "use case" for that solution:
 
-1. 2-Pipe FCU in Heating & Cooling Mode
-2. Automatic Transfer Switch in Normal or Emergency Mode
-3. CRAH Unit with Multiple Chilled Water Sources
-4. Other...? Perhaps something that is a different kind of edge case, like Primary/Secondary/Tertiary loops? I'm not used to that being dynamic though.
-5. Maybe a Chilled/Condenser Water Swing Pump?
+- 2-Pipe FCU in Heating & Cooling Mode
+  - Solve for: HVAC Mode relationship with Active Plant
+  - Use case: Active coil entering water temperature (in lieu of a local sensor)
+- Automatic Transfer Switch in Normal or Emergency Mode
+  - Solve for: Active elec source depending on ATS Position
+  - Use case: Determine incoming power being provided to switch
+- CRAC Unit with Multiple Chilled Water Sources
+  - Solve for: Isolation Valve position mapped to which Plant is actively feeding the CRAC
+  - Use case: Active coil entering water temperature
+- Other...? Perhaps something that is a different kind of edge case, like multi-tiered systems or a Chilled/Condenser Water Swing Pump?
+
+
+## Diagrams
+
+### 2-Pipe FCU
+
+![alt text](image-1.png)
+
+### ATS Mode
+
+![alt text](image-2.png)
+
+### CRAH with Multiple Sources
+
+![alt text](image-3.png)
