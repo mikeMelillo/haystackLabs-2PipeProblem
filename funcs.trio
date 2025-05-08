@@ -1,0 +1,115 @@
+name:findActiveRef
+func
+src:
+  //findActiveRef
+  //e.g. read(fcu and heating and cooling).findActiveRef("water", today())
+  (equip, marker, range) => do
+    
+    //"water" + "Switch"
+    switchTag: toTagName(marker + "Switch")
+    
+    //find switch point and read hisData
+    switchPt: equip.toPoints.find(p=> p.has(switchTag))
+    switchHisData: switchPt.hisRead(range)
+    
+    //"heating", "cooling
+    states: switchPt["enum"].split(",")
+    
+    //"water" + "Ref" [@heatingPlant, @coolingPlant]
+    refEntities: equip[marker + "Ref"]
+    
+    //add a column to history data mapping the value of switchPoint,
+    return switchHisData.addCol("activeRef", c=> do
+      //if true, get states[1] == "cooling" else current state is "heating"
+      if(c["v0"]) val: states[1] else val: states[0]
+      //find which refEntity has the tag matching current state from enum
+      refEntities.find(r=> r.toRec().has(val))->id
+    end)
+  end
+---
+name:generateStateData
+func
+src:
+  (startDate: today()) => do
+    startDt: parseDateTime(startDate + " 00:00:00 New_York", "YYYY-MM-DD hh:mm:ss zzzz")
+    
+    shift: 1h
+    
+    data: {}.toGrid()
+    
+    (0..23).each(index=> do
+      ts: startDt + (index * shift)
+      data = data.addRow({ts: ts, v0: index.isEven()})
+    end)
+    
+    return data
+  end
+---
+name:findActiveData
+func
+src:
+  //findActiveData
+  //e.g. read(fcu and heating and cooling).findActiveData("water", today())
+  (equip, marker, range) => do
+    
+    //find activeRefData and switchPt his data
+    activeRefData: findActiveRef(equip, marker, range)
+    switchTag: toTagName(marker + "Switch")
+    switchPt: equip.toPoints.find(p=> p.has(switchTag))
+    switchHisData: switchPt.hisRead(range)
+    states: switchPt["enum"].split(",")
+    refEntities: equip[marker + "Ref"]
+    
+    //map states enum back to points on upstream equips and read his data
+    sourceData: states.map(state=>
+        refEntities
+          .find(e=> e.toRec().has(state))
+          .toPoints.find(filterToFunc(parseFilter(marker) and his and point))
+      ).hisRead(range)
+    joinData: hisJoin([activeRefData, sourceData])
+    //after hisJoin dataCols 0-2 are fixed [ts, v0 == switchPt, v1 == activeRef]
+    //we need our sourceData cols to select them out later and map back in with addCols
+    dataCols: joinData.cols[3..-1]
+    dataColNames: joinData.cols[3..-1]
+    lastState: null
+    thisState: null
+    
+    //return joinData after adding the activeReading col
+    joinData.addCol("activeReading", r=> do
+      //try catch let's us fail to last state in case r->activeRef is null
+      thisState: try r->activeRef catch lastState
+      //filters current state back to an active point which we will
+      //match to the correct data sample
+      activeSourcePoint: thisState.toRec.toPoints
+        .find(filterToFunc(parseFilter(marker) and his and point))
+      newVal: null
+      //matches data column by id to the source point id we pulled from our current state
+      dataCols.each( (dc,i) =>
+        if(dc.meta["id"] == activeSourcePoint["id"]) newVal = r[dataColNames[i].toStr]
+      )
+      lastState = thisState
+      return newVal
+    end)
+  end
+---
+name:pseudoData
+func
+src:
+  (base: 500kW, startDate: today()) => do
+    startDt: parseDateTime(startDate +  " 00:00:00 New_York", "YYYY-MM-DD hh:mm:ss zzzz")
+    
+    shift: 5min
+    last: null
+    
+    data: {}.toGrid()
+    
+    (0..500).each(index=> do
+      x: random(0..10) / 1000
+      variance: base * x
+      val: base + variance
+      ts: startDt + (index * shift)
+      data = data.addRow({ts: ts, v0: val})
+    end)
+    
+    return data
+  end
